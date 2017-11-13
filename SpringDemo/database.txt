@@ -1,0 +1,99 @@
+create or replace procedure cargarArchivo(
+   p_FileName IN VARCHAR2
+   --p_TotalInserted OUT NUMBER
+) as
+
+  v_archivo UTL_FILE.FILE_TYPE;
+  v_linea varchar2(1024);
+  v_PrimeraComa NUMBER;
+  v_SegundaComa NUMBER;
+  v_TerceraComa NUMBER;
+  v_CuartaComa NUMBER;
+  v_QuintaComa NUMBER;
+
+  v_pais PRODUCTOS.ID_PAIS%TYPE;
+  v_cod  PRODUCTOS.CODIGO%TYPE;
+  v_desc PRODUCTOS.DESCRIPCION%TYPE;
+  v_tunidad PRODUCTOS.TIPO_UNIDAD%TYPE;
+  v_cap     PRODUCTOS.CAPACIDAD%TYPE;
+  v_capac   varchar(10);
+  v_est     PRODUCTOS.ESTADO%TYPE;
+  v_id      number;
+
+begin
+  v_archivo := UTL_FILE.FOPEN ('DIR_TMP', p_FileName, 'r');
+  --p_TotalInserted := 0;
+  LOOP
+    BEGIN
+      UTL_FILE.GET_LINE(v_archivo, v_linea);
+      dbms_output.put_line (v_linea);
+
+      v_PrimeraComa := INSTR(v_linea, ',', 1, 1);
+      v_SegundaComa := INSTR(v_linea, ',', 1, 2);
+      v_TerceraComa := INSTR(v_linea, ',', 1, 3);
+      v_CuartaComa := INSTR(v_linea, ',', 1, 4);
+      v_QuintaComa := INSTR(v_linea, ',', 1, 5);
+
+
+      v_pais    := SUBSTR(v_linea, 1, v_PrimeraComa - 1);
+      --dbms_output.put_line ('pais:' || v_pais);
+      v_cod     := SUBSTR(v_linea, v_PrimeraComa + 1, v_SegundaComa - v_PrimeraComa - 1);
+            --dbms_output.put_line ('codigo:' || v_cod);
+      v_desc    := SUBSTR(v_linea, v_SegundaComa + 1, v_TerceraComa - v_SegundaComa - 1);
+            --dbms_output.put_line ('v_desc:' || v_desc);
+      v_tunidad := SUBSTR(v_linea, v_TerceraComa + 1, v_CuartaComa - v_TerceraComa - 1);
+            --dbms_output.put_line ('v_tunidad:' || v_tunidad);
+      v_capac     := SUBSTR(v_linea, v_CuartaComa + 1, v_QuintaComa - v_CuartaComa - 1);
+       --dbms_output.put_line ('v_cap:' || v_capac);
+      v_cap  := to_number(replace(v_capac, '.', ','));
+      v_est     := SUBSTR(v_linea,  v_QuintaComa + 1);
+               --dbms_output.put_line ('v_est:' || v_est);
+
+
+      select SEQ_ID_PRODUCTO.NEXTVAL INTO v_id FROM DUAL;
+      insert into PRODUCTOS (ID_PRODUCTO, ID_PAIS, CODIGO,DESCRIPCION,TIPO_UNIDAD ,
+                             CAPACIDAD , ESTADO ,FECHA_CREACION )
+      values(v_id, v_pais, v_cod, v_desc, v_tunidad, v_cap, v_est,     sysdate);
+
+      --p_TotalInserted := p_TotalInserted + 1;
+      COMMIT;
+
+
+    EXCEPTION
+      WHEN NO_DATA_FOUND THEN
+          UTL_FILE.FCLOSE(v_archivo);
+          dbms_output.put_line ('Fin del archivo');
+          EXIT;
+      WHEN OTHERS THEN
+        ROLLBACK;
+        EXIT;
+    END;
+  END LOOP;
+  UTL_FILE.FCLOSE(v_archivo);
+exception
+   WHEN OTHERS THEN
+    UTL_FILE.FCLOSE(v_archivo);
+    RAISE;
+
+end;
+
+
+
+
+Pasos:
+
+-- ejecutar con usuario system o con privilegios
+create directory dir_tmp as 'c:\temp';
+grant read, write on directory dir_tmp to test;
+
+GRANT UNLIMITED TABLESPACE TO test; -- en caso no hay permisos sobre tablespaces.
+
+
+
+
+
+loguear como SYS and execute grant execute on utl_file to test -- en caso hay error de 'UTL_FILE' must be declared
+
+
+-- installar el jar de oracle en maven
+mvn install:install-file -Dfile=C:\\Temp\\ojdbc6.jar -DgroupId=com.oracle -DartifactId=ojdbc6 -Dversion=11.2.0 -Dpackaging=jar
